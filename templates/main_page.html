@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block javascript %}
+    {{ block.super }}
+    
+    <script type="text/javascript">
+        $(document).ready(function(){
+            $("#new_calc").click(function(){
+                $.ajax({
+                    url: "/main_page/",
+                    data: "",
+                    type: "POST",
+                    success:function(data, status, jqXHR){
+                                window.open(data);
+                    }, 
+                    error: function(){
+                            alert('unexpected error');
+                    },
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+
+
+<button id="new_calc">create new calculator</button> it will be opened in new browser tab<br/>
+
+{% for calc in calculators %}
+    <a href="{{ calc.get_url }}">{{calc}}</a><br/>
+{% endfor %}
+{% endblock %}

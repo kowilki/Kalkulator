@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block javascript %}
+    {{block.super}}
+    <script type="text/javascript">
+        calc_id = {{ calc.id }};
+        state = {
+            {% for key,value in state.items %}
+                "{{ key }}": {{value}},
+            {% endfor %}
+        };
+
+        {% if calc_version %}
+            calc_version = {{calc_version}};
+        {% else %}
+            calc_version = '';
+        {% endif %}
+    </script>
+    <script type="text/javascript" src="/site_media/calc.js"></script>
+    <script type="text/javascript" src="calc.js"></script>
+    <style type="text/css">
+        .result {font-weight: bold; color: red;}
+    </style>
+{% endblock %}
+
+{% block content %}
+    <h2>Go to <a href="{{calc.get_changes_url}}">history of changes</a> for current caluculator</h2>
+    <form action=".">
+        {% csrf_token %}
+    </form>
+    <h3>Simple calculator:</h3>
+        Second operation argument(first is <a href="#calc_result">result</a>): <input type="text" id="txtUserInput"/><br/> 
+        <button id="btn_add">add</button>
+        <button id="btn_sub">subtract</button>
+        <button id="btn_mul">multiply</button>
+        <button id="btn_div">divide (not by zero of course)</button>
+        <div class="result">
+            Result: <span id="calc_result"></span>
+        </div>
+    <hr/>
+    <h3>Fibbonaci number counting :</h3>
+        <button id="btn_fibb_calculate">
+            calculate value of given Fibbonaci's nubmer
+        </button>
+        <input type="text" id="fibb_number"/>
+        <br/>
+        <span class="result">Calculated value: <span id="fibb_result"></span></span>
+    <hr/>
+    <h3>Median counting:</h3>
+        <span class="result">Median value: <span id="median_result">0</span></span><br/>
+        click <span style="color: green">here</span> so that results of median calculation would update<br/>
+        value of newly inserted number: <input type="text" id="median_new_number_value"/><br/>
+        <br/>
+        <button id="btn_add_number_to_median">click here to add new value to median</button>
+        <div id="median_container">
+        </div>
+    <h3>Logging:</h4>
+        <div id="log"/>
+{% endblock %}

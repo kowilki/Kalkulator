@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h3>History of operations of calulator: {{calc}}</h3>
+<h2>go to <a href="{{calc.get_url}}">newest calculator state</a> there you may perform calculations.</h2>
+{% for change in calc.calc_history_set.all %}
+    version: {{forloop.counter}} :<a href="{{change.get_url}}">{{ change }}</a><br/>
+{% endfor %}
+{% endblock %}

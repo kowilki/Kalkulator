@@ -1,0 +1,139 @@
+Autor: Marek Wawrzyczek
+w razie jakichkolwiek pytań - proszę o kontakt pod adresem e-mail: mwawrzyczek@gmail.com
+
+Spis tresci:
+    1. Informacje ogólne
+    2. Kod kliencki
+    3. Kod serwerowy
+    4. Ogólny zarys działania aplikacji
+    5. Konfiguracja aplikacji
+    6. Uruchomienie serwera
+    7. Jak testować
+    
+1. Informacje ogólne:
+    Wszystkie sciezki sa podawane wzgledem katalogu Calc znajdujacego sie w archiwum. 
+    Aplikacja korzysta domyślnie z bazy sqlite3 aby uprościć testowanie i konfigurację.
+
+2. Kod kliencki:
+    zaimplementowany w javascript. Glowny kod obslugi kalkulatora znajduje sie w pliku site_media/calc.js.
+    Z tego co pamietam to chyba nie istnieja metody zaimplementwoane jako prywatne.
+    Warstwa kliencka (która z punktu widzenia całej aplikacji jest widoczna jako warstwa "Template" (django oferuje model MTV - model, template, view, gdzie widok reprezentuje "pośrednik" między "szablonem" a "modelem") - odpowiednik "Widoku" z MVC) jest zaimplementowana w modelu MVC. W ponizszym opisie klas po nazwie klasy opcjonalnie moze wystapic nazwa warstwy modelu MVC do ktorej zalicza sie dana klasa.
+    Opis klas:
+        - CalcGui["View"]:
+            odpowiedzialna za zarzadzanie interakcyjnynmi i widocznymi elementami strony. Tworzy te elementy oraz je konfiguruje w taki sposob, aby wszystkie akcje majace na celu zmiane stanu kalkuklatora, wywolywaly metode perform_action klasy Calculator.
+            W swoich polach przechowuje referencje do interakcyjnych i widocznych elementow strony (zwanych dalej kontrolkami).
+            opis metod wywolywanych z poza klasy CalcGui:
+                set_state - ustawia stan CalcGui
+                init - konfiguruje kontrolkio
+        - GuiState: docelowo miala reprezentowac stan klasy CalcGui, praktycznie nie uzywana
+        - CalcState: docelowo miala reprezentowac stan klasy Calculator, praktycznie nie uzywana
+        - MedianCounter["Model"]: 
+            Umozliwia obliczanie mediany zadanego zbioru liczb, przechowywuje te liczby
+            opis metod wywolywanych spoza klasy:
+                - get_state - zwraca stan obiektu
+                - set_state - ustawia stan obiektu
+                - get_val - zwraca mediane na podstawie aktualnego stanu obiektu
+                - update - uaktualnia stan obiektu - jako parametry tej metody sa przyjmowane informacje opisujace zmiane jaka zaszla na zbiorze liczb z ktorej mediane chcemy policzyc:
+                     - typ zmiany jaka powinna nastapic na obiekcie (dodanie nowej wartosci, modyfikacja istniejacej)
+                     - indeks elementu ktory zostal zmieniony/dodany
+                     - nowa wartosc 
+                     ponizej przedstawiono przykłady słowego opisu wszystkich argumentów jakie mogą być przekazane do metody:
+                        - dodano nową liczbę o wartości 4.5, na pozycji 6.
+                        - zmodyfikowano liczbę na pozycji 3 - nowa wartość liczby na pozycji 3 to 102
+         -           w implementacji metody wystepuje wzmianka na temat tego że można przekazywać jako typ zmiany "removed", jednak pozostała część kodu nie korzysta z tej możliwości
+        - FibbonaciCounter["Model"]:
+            Umożliwia obliczanie numeru Fibbonaciego o zadanym indeksie
+            opis metod wywoływanych z zewnątrz:
+                - get_val - zwraca liczbę Fibbonaciego o zadanym indeksie
+                - get_state - zwraca stan obiektu
+        - Calculator["Controller"]:
+            Klasa odpowiedziana za przechowywanie informacji o zdarzeniach z klasy gui (w tym konkretnym przykładzie z instancji GuiCalc)
+            opis ważniejszych metod:
+                - init - inicjalizuje obiekt, praktycznie wywoluje metode init GUI
+                - get_state - zwraca stan obiektu. Przez stan obiektu rozumie się tutaj wartości jakie są zwracane przez poszczególne moduły kalkulatora (do obliczania mediany, numeru Fibbonaciego)
+                - reset_calc, reset_fibb, reset_median - metody mające na celu ustawianie statusu domyślnego poszczególnych modułów kalkulatora oraz jego możliwości do wykonywania prostych działań - nie wiem czemu, ale gdy polegałem na bloku try-catch stan tych modułów nie był przywracany przy wystąpieniu wyjątku - opisane w komentarzu kodu źrudłowego, być może gdzieś się pomyliłem
+                 - perform_action - metoda wywolywana przez warstwę widoku, jako argumenty przyjmuje opis akcji jaką trzeba wykonać (np. użytkownik zechciał dodać nową liczbę do liczb z których medianę należy policzyć), oraz dane jakie są potrzebne aby daną akcję wykonać. Te dane potrzebne do wykonania danej akcji nie są jawnie zadeklarowane w definicji funkcji - korzysta się w niej ze zmiennej arguments.  Na początku następuje wywołanie funkcji disable_all() mającej uniemożliwić wykonywanie innych operacji w czasie trwania wywołania metody perform_action. Jest to związane z tym, że mogłoby to spowodować żądanie wysłania do serwera informacji o wykonaniu operacji, podczas gdy inne wywołanie ajaksowe jeszcze by się nie zakończyło. Niektóre wersje niektórych przeglądarek obsługują poprawnie maksymalnie dwa żądania ajaksowe równocześnie. Ze względu na prostotę ograniczyłem maksymalną liczbę równoległych wywołań ajaksowych do jednego. Metoda perform_action na podstawie typu akcji do wykonania wybiera odpowiednią funkcję do wykonania danej operacji. Następnie wywołuje metodę save_state, która jest opisana poniżej, po czym wywołuje metodę set_state obiektu GUI.
+                - save_state - przekazuje informację o zmianie stanu do serwera, w tym celu korzysta z klasy StateManager
+                - set_state - ustawia stan obiektu, w tym stan odpowiednich jego modułów (np. do obliczania mediany, obliczania zadanegj liczby Fibbonaciego)
+        - StateManager["warstwa dostępu do danych"]:
+            przechowuje obiekt połączenia z serwerem, oraz informacje o adresie url pod jaki nalezy wysłać dane
+            metody uzywane przez inne klasy:
+                - save_diff - zachowuje informacje o zmianie stanu kalkulatora na serwerze, w tym celu wywołuje metodę send na obiekcie połączenia, i jako callback zwrotny przekazuje funkcje która "uaktywnia" poprzednio zdezaktywowane (w metodzie perform_action) kontrolki - jak teraz na to patrzę to jest to zbędne, z racji tego że to uaktywnianie i tak jest dodawane na siłę do każdego callbacka w metodzie send obiektu zwracanego przez get_connection - jest to opisane w dalszej części opisu.
+        - metoda get_connection() zwraca instancję klasy reprezentującej połączenie z serwerem, wywołanie metody zwraca zawsze tę samą instancję obiektu połączenia (Singleton). Obiekt połączenia dba o to aby w jednym momencie było aktywne maksymalnie jedno rządanie ajaksowe. Metoda send obiektu connection opakowywuje przekazane funkcje mające być wywołane w przypadku pomyślnej obsługi rządania jak i w przypadku obsługi błędu za pomocą następującego kodu: 
+
+        this.fnct_wrapper = function(f, conn){
+            return function(data, textStatus, jqXHR){
+                f && f.apply(arguments);
+                conn._send_lock = false;
+            };
+        };
+
+        this.err_wrapper = function(f, conn){
+            return function(data, status, jqXHR){
+                if(status === "timeout"){
+                    helper.error("the server didn't response in proper time, contact site administrator");
+                }
+                f && f.apply(arguments);
+                conn._send_lock = false;
+            };
+        };
+
+        this.send = function(where, what, method, callback, errCallback){
+            if(!this._is_enabled)return;
+            if(this._send_lock){
+                throw "can't send data now, lock set"
+            }
+            this._send_lock = true;
+            
+
+            callback = this.fnct_wrapper(callback, this); // <-- tutaj następuje opakowywanie funkcji
+            errCallback = this.err_wrapper(errCallback, this); // <-- tutaj następuje opakowywanie funkcji
+
+
+            $.ajax({
+                url: where,
+                data: what,
+                type: method,
+                success: callback,
+                error: errCallback,
+            });
+        }
+
+    Opis niektórych pozostałych elementów kodu klienckiego:
+         - obiekt helper (plik site_media/helper.js) zawiera metody pomocnicze.
+         - funkcja enable_disabled - aktywuje wszytkie responsywne elementy GUI - powinno byc moze byc przeniesione do klasy CalcGui
+         - funkcja disable_all - dezaktywuje wszystkie responsywne elementy GUI - powinno byc moze byc przeniesione do klasy CalcGui
+
+    
+
+3. kod serwerowy - zaimplementowany przy uzyciu frameworku django
+    w pliku calc/views.py znajduje się kod "widoków" - czyli to to jest wywoływane z warstwy klienckiej
+    w pliku calc/models.py znajduje się kod "modelu"
+
+4. Ogólny zarys działania aplikacji:
+    - do serwera są wysyłane informacje o zmianach stanu
+    - w bazie danych składowane są informacje o zmianach stanu
+    - przy żądaniu odtworzenia konkretnej wersji kalkulatora, na serwerze następuje odtworzenie stanu na podstawie zmian, po czym ten stan jest wysyłany do warstwy klienckiej
+
+5. Konfiguracja aplikacji:
+    - standardowym interpreterem pythona powinien być python2.5.2
+    - należy ściągnąć za pomocą polecenia: 
+          svn co http://code.djangoproject.com/svn/django/tags/releases/1.2.5
+      ściągnąć wersję 1.2.5 frameworka django
+    - w głównym katalogu aplikacji powinien znajdować się katalog django (dostępny w katalogu 1.2.5 ściągniętym z svn'a w poprzednim kroku) - można również dodać symlinka
+    
+6. Uruchomienie serwera:
+    aby uruchomić serwer należy w głównym katalogu aplikacji wywołać polecenie:
+        python manage.py runserver
+    w efekcie tego pod adresem localhost:8000 powinna być dostępna aplikacja
+
+7. Jak testować:
+    na stronie logowania należy podać dane:
+        login: abc
+        hasło: a
+    W przypadku gdy aplikacja się wysypie, należy:
+        - zatrzymać serwer
+        - usunąć plik y_database_file
+        - skopiować do katalogu głównego "oryginalny" plik y_database_file (ten który przesłany jest w arhciwum Gotowe.tar.bz2
+        - uruchomić serwer
+

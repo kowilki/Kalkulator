@@ -1,0 +1,21 @@
+<html>
+<head>
+{% block javascript %}
+    <script type="text/javascript" src="/site_media/jquery-1.5.2.js"></script>
+    <script type="text/javascript" src="/site_media/csrf.js"></script>
+    <script type="text/javascript" src="/site_media/helper.js"></script>
+{% endblock %}
+</head>
+<body>
+
+<a href="/main_page">main page(list of calculators)</a>
+|<a href="/">login page</a>
+|<a href="/admin/auth/user/add/">add new user</a>
+
+<br/>
+<hr/>
+
+{% block content %}
+{% endblock %}
+</body>
+</html>
